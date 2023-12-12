@@ -1,25 +1,23 @@
 import re
 from urllib.parse import urljoin
 import logging
+from collections import defaultdict
 
 import requests_cache
-from bs4 import BeautifulSoup
 from tqdm import tqdm
 
 from constants import BASE_DIR, MAIN_DOC_URL, PEP_DOC_URL, EXPECTED_STATUS
 from configs import configure_argument_parser, configure_logging
 from outputs import control_output
-from utils import get_response, find_tag, find_all_tags, uncorrect_status
+from utils import (find_tag, find_all_tags,
+                   uncorrect_status, get_soup)
+from exceptions import NoVersionsFoundException
 
 
 def whats_new(session: requests_cache.CachedSession):
     whats_new_url = urljoin(MAIN_DOC_URL, 'whatsnew/')
 
-    response = get_response(session, whats_new_url)
-    if response is None:
-        return
-
-    soup = BeautifulSoup(response.text, features='lxml')
+    soup = get_soup(session, whats_new_url)
 
     main_div = find_tag(soup, 'section', attrs={'id': 'what-s-new-in-python'})
 
@@ -36,11 +34,7 @@ def whats_new(session: requests_cache.CachedSession):
         href = version_a_tag['href']
         version_link = urljoin(whats_new_url, href)
 
-        response = get_response(session, version_link)
-        if response is None:
-            continue
-
-        soup = BeautifulSoup(response.text, 'lxml')
+        soup = get_soup(session, version_link)
 
         h1 = find_tag(soup, 'h1')
         dl = find_tag(soup, 'dl')
@@ -54,11 +48,7 @@ def whats_new(session: requests_cache.CachedSession):
 
 
 def latest_versions(session: requests_cache.CachedSession):
-    response = get_response(session, MAIN_DOC_URL)
-    if response is None:
-        return
-
-    soup = BeautifulSoup(response.text, 'lxml')
+    soup = get_soup(session, MAIN_DOC_URL)
 
     sidebar = find_tag(soup, 'div', attrs={'class': 'sphinxsidebarwrapper'})
     ul_tags = find_all_tags(sidebar, 'ul')
@@ -81,18 +71,15 @@ def latest_versions(session: requests_cache.CachedSession):
                 results.append((link, version, status))
             break
     else:
-        raise Exception('Ничего не нашлось')
+        raise NoVersionsFoundException('Ничего не нашлось')
 
     return results
 
 
 def download(session: requests_cache.CachedSession):
     downloads_url = urljoin(MAIN_DOC_URL, 'download.html')
-    response = get_response(session, downloads_url)
-    if response is None:
-        return
 
-    soup = BeautifulSoup(response.text, 'lxml')
+    soup = get_soup(session, downloads_url)
 
     main_tag = find_tag(soup, 'div', {'role': 'main'})
     table_tag = find_tag(main_tag,  'table', {'class': 'docutils'})
@@ -108,17 +95,13 @@ def download(session: requests_cache.CachedSession):
     archive_path = downloads_dir / filename
 
     with open(archive_path, 'wb') as file:
-        file.write(response.content)
+        file.write(soup.encode('utf-8'))
 
     logging.info(f'Архив был загружен и сохранён: {archive_path}')
 
 
 def pep(session: requests_cache.CachedSession):
-    response = get_response(session, PEP_DOC_URL)
-    if response is None:
-        return
-
-    soup = BeautifulSoup(response.text, 'lxml')
+    soup = get_soup(session, PEP_DOC_URL)
 
     table_tag = find_tag(soup, 'section', attrs={'id': 'numerical-index'})
     table_body_tag = find_tag(table_tag, 'tbody')
@@ -126,16 +109,7 @@ def pep(session: requests_cache.CachedSession):
         table_body_tag, 'tr',
         attrs={'class': re.compile('row')})
 
-    status_count = {
-        'A': 0,
-        'D': 0,
-        'F': 0,
-        'P': 0,
-        'R': 0,
-        'S': 0,
-        'W': 0,
-        '': 0
-    }
+    status_count = defaultdict(int)
 
     for row_tag in tqdm(row_tags):
         table_status_tag = find_tag(row_tag, 'abbr')
@@ -148,11 +122,7 @@ def pep(session: requests_cache.CachedSession):
         pep_link = pep_tag['href']
         pep_url = urljoin(PEP_DOC_URL, pep_link)
 
-        response = get_response(session, pep_url)
-        if response is None:
-            continue
-
-        soup = BeautifulSoup(response.text, 'lxml')
+        soup = get_soup(session, pep_url)
 
         dl_tag = find_tag(
             soup, 'dl',
@@ -197,7 +167,14 @@ def main():
         session.cache.clear()
 
     parser_mode = args.mode
-    results = MODE_TO_FUNCTION[parser_mode](session)
+
+    try:
+        results = MODE_TO_FUNCTION[parser_mode](session)
+    except Exception:
+        logging.exception(
+            f'Возникла ошибка во время работы парсера в режиме {parser_mode}',
+            stack_info=True
+        )
 
     if results is not None:
         control_output(results, args)
