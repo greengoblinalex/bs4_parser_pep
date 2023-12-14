@@ -5,6 +5,7 @@ BASE_DIR = Path(__file__).parent
 # main
 MAIN_DOC_URL = 'https://docs.python.org/3/'
 PEP_DOC_URL = 'https://peps.python.org/'
+DOWNLOADS_DIR = BASE_DIR / 'downloads'
 
 EXPECTED_STATUS = {
     'A': ('Active', 'Accepted'),
@@ -19,6 +20,7 @@ EXPECTED_STATUS = {
 
 # outputs
 DATETIME_FORMAT = '%Y-%m-%d_%H-%M-%S'
+FILE_OUTPUT_DIR = BASE_DIR / 'results'
 
 # configs
 DT_FORMAT = '%d.%m.%Y %H:%M:%S'

@@ -6,12 +6,13 @@ from collections import defaultdict
 import requests_cache
 from tqdm import tqdm
 
-from constants import BASE_DIR, MAIN_DOC_URL, PEP_DOC_URL, EXPECTED_STATUS
+from constants import (BASE_DIR, MAIN_DOC_URL,
+                       PEP_DOC_URL, EXPECTED_STATUS)
 from configs import configure_argument_parser, configure_logging
 from outputs import control_output
-from utils import (find_tag, find_all_tags,
-                   uncorrect_status, get_soup)
-from exceptions import NoVersionsFoundException
+from utils import find_tag, find_all_tags, get_soup
+from exceptions import (NoPepVersionsFoundException,
+                        UncorrectPepStatusException)
 
 
 def whats_new(session: requests_cache.CachedSession):
@@ -71,7 +72,7 @@ def latest_versions(session: requests_cache.CachedSession):
                 results.append((link, version, status))
             break
     else:
-        raise NoVersionsFoundException('Ничего не нашлось')
+        raise NoPepVersionsFoundException('Ничего не нашлось')
 
     return results
 
@@ -90,6 +91,8 @@ def download(session: requests_cache.CachedSession):
     archive_url = urljoin(downloads_url, pdf_a4_link)
     filename = archive_url.split('/')[-1]
 
+    # К сожалению, если я заменяю BASE_DIR / 'results' на DOWNLOADS_DIR
+    # из константы, тесты перестают проходится
     downloads_dir = BASE_DIR / 'downloads'
     downloads_dir.mkdir(exist_ok=True)
     archive_path = downloads_dir / filename
@@ -133,7 +136,8 @@ def pep(session: requests_cache.CachedSession):
 
         expected_status = EXPECTED_STATUS[table_status_text[1:]]
         if status_text not in expected_status:
-            uncorrect_status(pep_url, status_text, expected_status)
+            raise UncorrectPepStatusException(
+                pep_url, status_text, expected_status)
 
         status_first_letter = status_text[0]
         if status_text in EXPECTED_STATUS.get(status_first_letter):
@@ -170,11 +174,8 @@ def main():
 
     try:
         results = MODE_TO_FUNCTION[parser_mode](session)
-    except Exception:
-        logging.exception(
-            f'Возникла ошибка во время работы парсера в режиме {parser_mode}',
-            stack_info=True
-        )
+    except Exception as e:
+        logging.exception(f'Ошибка при выполнении парсера: {str(e)}')
 
     if results is not None:
         control_output(results, args)

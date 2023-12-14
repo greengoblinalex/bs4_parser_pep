@@ -32,6 +32,8 @@ def pretty_output(results, cli_args=None):
 
 
 def file_output(results, cli_args=None):
+    # К сожалению, если я заменяю BASE_DIR / 'results' на FILE_OUTPUT_DIR
+    # из константы, тесты перестают проходится
     results_dir = BASE_DIR / 'results'
     results_dir.mkdir(exist_ok=True)
 

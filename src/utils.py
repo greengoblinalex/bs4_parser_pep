@@ -2,13 +2,22 @@ import logging
 
 from bs4 import BeautifulSoup
 
+from requests import RequestException
 from exceptions import ParserFindTagException
 
 
 def get_response(session, url, encoding='utf-8'):
-    response = session.get(url)
-    response.encoding = encoding
-    return response
+    try:
+        response = session.get(url)
+        response.encoding = 'utf-8'
+        return response
+    except RequestException:
+        error_msg = f'Возникла ошибка при загрузке страницы {url}'
+        raise RequestException(error_msg)
+
+
+def get_soup(session, url):
+    return BeautifulSoup(get_response(session, url).text, features='lxml')
 
 
 def find_tag(soup, tag, attrs=None):
@@ -27,20 +36,3 @@ def find_all_tags(soup, tag, attrs=None):
         logging.error(error_msg, stack_info=True)
         raise ParserFindTagException(error_msg)
     return searched_tags
-
-
-def uncorrect_status(url, status, expected_status):
-    logging.warning(
-        f'''Несовпадающие статусы:\n
-        {url}\n
-        Статус в карточке: {status}\n
-        Ожидаемые статусы: {expected_status}'''
-    )
-
-
-def get_soup(session, url):
-    response = get_response(session, url)
-    if response is None:
-        return
-
-    return BeautifulSoup(response.text, features='lxml')
