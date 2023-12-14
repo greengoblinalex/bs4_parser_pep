@@ -10,9 +10,8 @@ from constants import (BASE_DIR, MAIN_DOC_URL,
                        PEP_DOC_URL, EXPECTED_STATUS)
 from configs import configure_argument_parser, configure_logging
 from outputs import control_output
-from utils import find_tag, find_all_tags, get_soup
-from exceptions import (NoPepVersionsFoundException,
-                        UncorrectPepStatusException)
+from utils import find_tag, find_all_tags, get_soup, uncorrect_status
+from exceptions import NoPepVersionsFoundException
 
 
 def whats_new(session: requests_cache.CachedSession):
@@ -136,8 +135,7 @@ def pep(session: requests_cache.CachedSession):
 
         expected_status = EXPECTED_STATUS[table_status_text[1:]]
         if status_text not in expected_status:
-            raise UncorrectPepStatusException(
-                pep_url, status_text, expected_status)
+            uncorrect_status(pep_url, status_text, expected_status)
 
         status_first_letter = status_text[0]
         if status_text in EXPECTED_STATUS.get(status_first_letter):
@@ -174,10 +172,10 @@ def main():
 
     try:
         results = MODE_TO_FUNCTION[parser_mode](session)
-    except Exception as e:
-        logging.exception(f'Ошибка при выполнении парсера: {str(e)}')
+    except Exception:
+        logging.exception('Возникла ошибка во время работы парсера')
 
-    if results is not None:
+    if results:
         control_output(results, args)
     logging.info('Парсер завершил работу.')
 
