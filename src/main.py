@@ -6,7 +6,7 @@ from collections import defaultdict
 import requests_cache
 from tqdm import tqdm
 
-from constants import (BASE_DIR, MAIN_DOC_URL,
+from constants import (BASE_DIR, DOWNLOADS_DIR_NAME, MAIN_DOC_URL,
                        PEP_DOC_URL, EXPECTED_STATUS)
 from configs import configure_argument_parser, configure_logging
 from outputs import control_output
@@ -90,9 +90,7 @@ def download(session: requests_cache.CachedSession):
     archive_url = urljoin(downloads_url, pdf_a4_link)
     filename = archive_url.split('/')[-1]
 
-    # К сожалению, если я заменяю BASE_DIR / 'results' на DOWNLOADS_DIR
-    # из константы, тесты перестают проходится
-    downloads_dir = BASE_DIR / 'downloads'
+    downloads_dir = BASE_DIR / DOWNLOADS_DIR_NAME
     downloads_dir.mkdir(exist_ok=True)
     archive_path = downloads_dir / filename
 

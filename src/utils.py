@@ -9,7 +9,7 @@ from exceptions import ParserFindTagException
 def get_response(session, url, encoding='utf-8'):
     try:
         response = session.get(url)
-        response.encoding = 'utf-8'
+        response.encoding = encoding
         return response
     except RequestException:
         error_msg = f'Возникла ошибка при загрузке страницы {url}'

@@ -4,7 +4,7 @@ import logging
 
 from prettytable import PrettyTable
 
-from constants import BASE_DIR, DATETIME_FORMAT
+from constants import BASE_DIR, FILE_OUTPUT_DIR_NAME, DATETIME_FORMAT
 
 
 def control_output(results, cli_args):
@@ -32,9 +32,7 @@ def pretty_output(results, cli_args=None):
 
 
 def file_output(results, cli_args=None):
-    # К сожалению, если я заменяю BASE_DIR / 'results' на FILE_OUTPUT_DIR
-    # из константы, тесты перестают проходится
-    results_dir = BASE_DIR / 'results'
+    results_dir = BASE_DIR / FILE_OUTPUT_DIR_NAME
     results_dir.mkdir(exist_ok=True)
 
     parser_mode = cli_args.mode
